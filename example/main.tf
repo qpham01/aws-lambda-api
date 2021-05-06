@@ -7,8 +7,8 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    bucket         = "lamson-usw2-tfstate"
-    key            = "example/api-lambda.tfstate"
+    bucket         = "lamson-usw2-artifacts"
+    key            = "tfstate/api-lambda-example.tfstate"
     region         = "us-west-2"
     dynamodb_table = "lamson-usw2-s3locks"
     encrypt        = true
