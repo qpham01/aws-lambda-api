@@ -21,3 +21,28 @@ variable "http_api_path" {
   description = "Path to create in the API Gateway HTTP API (can be used to trigger redeployments)"
   type        = string
 }
+
+variable "vpc_id" {
+  default     = "vpc-aea68ed6"
+  type        = string
+}
+
+variable "subnet_id_0" {
+  default     = "subnet-c5b3158f"
+  type        = string
+}
+
+variable "subnet_ids" {
+  default     = ["subnet-c5b3158f","subnet-f94748d2","subnet-2246c35a","subnet-5efc6b03"]
+  type        = list(string)
+}
+
+variable "security_group_id" {
+  default     = "sg-94c3f5ab"
+  type        = string
+}
+
+variable "route_table_id" {
+  default     = "rtb-a43520df"
+  type        = string
+}

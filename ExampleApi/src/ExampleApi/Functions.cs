@@ -27,6 +27,8 @@ namespace ExampleApi
         public const string ID_QUERY_STRING_NAME = "Id";
         IDynamoDBContext DDBContext { get; set; }
 
+        private readonly string _tableName;
+
         /// <summary>
         /// Default constructor that Lambda will invoke.
         /// </summary>
@@ -34,10 +36,10 @@ namespace ExampleApi
         {
             // Check to see if a table name was passed in through environment variables and if so 
             // add the table mapping.
-            var tableName = System.Environment.GetEnvironmentVariable(TABLENAME_ENVIRONMENT_VARIABLE_LOOKUP);
-            if(!string.IsNullOrEmpty(tableName))
+            _tableName = System.Environment.GetEnvironmentVariable(TABLENAME_ENVIRONMENT_VARIABLE_LOOKUP);
+            if(!string.IsNullOrEmpty(_tableName))
             {
-                AWSConfigsDynamoDB.Context.TypeMappings[typeof(Blog)] = new Amazon.Util.TypeMapping(typeof(Blog), tableName);
+                AWSConfigsDynamoDB.Context.TypeMappings[typeof(Blog)] = new Amazon.Util.TypeMapping(typeof(Blog), _tableName);
             }
 
             var config = new DynamoDBContextConfig { Conversion = DynamoDBEntryConversion.V2 };
@@ -51,6 +53,7 @@ namespace ExampleApi
         /// <param name="tableName"></param>
         public Functions(IAmazonDynamoDB ddbClient, string tableName)
         {
+            _tableName = tableName;
             if (!string.IsNullOrEmpty(tableName))
             {
                 AWSConfigsDynamoDB.Context.TypeMappings[typeof(Blog)] = new Amazon.Util.TypeMapping(typeof(Blog), tableName);
@@ -134,18 +137,26 @@ namespace ExampleApi
         {
             var blog = JsonConvert.DeserializeObject<Blog>(request?.Body);
             blog.Id = Guid.NewGuid().ToString();
-            blog.CreatedTimestamp = DateTime.Now;
+            blog.CreatedTimestamp = DateTime.Now;            
 
-            context.Logger.LogLine($"Saving blog with id {blog.Id}");
-            await DDBContext.SaveAsync<Blog>(blog);
-
-            var response = new APIGatewayProxyResponse
+            context.Logger.LogLine($"Saving blog '{blog.Name}' with id {blog.Id} to {_tableName}");
+            try 
             {
-                StatusCode = (int)HttpStatusCode.OK,
-                Body = blog.Id.ToString(),
-                Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
-            };
-            return response;
+                await DDBContext.SaveAsync<Blog>(blog);
+
+                var response = new APIGatewayProxyResponse
+                {
+                    StatusCode = (int)HttpStatusCode.OK,
+                    Body = blog.Id.ToString(),
+                    Headers = new Dictionary<string, string> { { "Content-Type", "text/plain" } }
+                };
+                return response;               
+            }
+            catch (Exception ex)
+            {
+                context.Logger.LogLine($"AddBlogAsync: {ex.Message}");
+                throw ex;
+            }
         }
 
         /// <summary>
@@ -169,13 +180,21 @@ namespace ExampleApi
                 };
             }
 
-            context.Logger.LogLine($"Deleting blog with id {blogId}");
-            await this.DDBContext.DeleteAsync<Blog>(blogId);
-
-            return new APIGatewayProxyResponse
+            try 
             {
-                StatusCode = (int)HttpStatusCode.OK
-            };
+                context.Logger.LogLine($"Deleting blog with id {blogId}");
+                await this.DDBContext.DeleteAsync<Blog>(blogId);
+
+                return new APIGatewayProxyResponse
+                {
+                    StatusCode = (int)HttpStatusCode.OK
+                };
+            }
+            catch (Exception ex)
+            {
+                context.Logger.LogLine($"RemoveBlogAsync: {ex.Message}");
+                throw ex;
+            }
         }
     }
 }
